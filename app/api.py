@@ -1,11 +1,14 @@
 import uuid
 
+import numpy as np
+
 from fastapi import APIRouter, UploadFile, status
 from fastapi.responses import JSONResponse
 
 from app.image_io import ImageDecodeError, ImageTooLargeError, decode_image
 from app.logger import logger
 from app.document import check_document
+from app.framing import check_framing
 from app.messages import REASON_MESSAGES
 from app.quality import check_quality
 from app.schemas import CheckResponse, CheckScores, Msg, ReasonItem
@@ -65,9 +68,16 @@ async def check(file: UploadFile):
     document = check_document(bgr_image)
     logger.info(f'[CHECK][TASK_ID: {TASK_ID}] End document check, reasons: {document.reasons}')
 
+    framing = None
+    if document.quad is not None:
+        logger.info(f'[CHECK][TASK_ID: {TASK_ID}] Start framing check')
+        framing = check_framing(bgr_image, np.array(document.quad, np.float32))
+        logger.info(f'[CHECK][TASK_ID: {TASK_ID}] End framing check, reasons: {framing.reasons}')
+
     logger.info(f'[CHECK][TASK_ID: {TASK_ID}] Start quality checks')
     quality = check_quality(bgr_image)
     logger.info(f'[CHECK][TASK_ID: {TASK_ID}] End quality checks, reasons: {quality.reasons}')
 
-    scores = CheckScores(document=document.scores, quality=quality.scores)
-    return build_response(document.reasons + quality.reasons, scores)
+    framing_reasons = framing.reasons if framing else []
+    scores = CheckScores(document=document.scores, framing=framing.scores if framing else None, quality=quality.scores)
+    return build_response(document.reasons + framing_reasons + quality.reasons, scores)

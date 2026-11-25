@@ -49,6 +49,10 @@ class Settings(BaseSettings):
     SCREENSHOT_BLOCK_STD: float = Field(0.6)      # 8x8 block with lower pixel std counts as perfectly flat
     SCREENSHOT_MIN_FLAT_SHARE: float = Field(0.5) # share of flat blocks above -> SCREENSHOT
 
+    # whole document in frame
+    FRAME_EDGE_MARGIN: float = Field(0.03)        # corner closer to the edge (share of side) -> ask second model
+    FRAME_MIN_FALLBACK_SCORE: float = Field(0.8)  # second model must see all 4 corners this confidently, else DOCUMENT_CUT
+
     # image quality
     QUALITY_WORK_SIZE: int = Field(1024)          # long side for quality checks (scores depend on resolution)
     SHARP_MIN_SCORE: float = Field(60.0)          # below -> BLURRY

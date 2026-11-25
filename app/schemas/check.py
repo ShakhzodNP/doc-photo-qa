@@ -3,6 +3,7 @@ from typing import List, Literal, Optional, Union
 from pydantic import BaseModel
 
 from app.schemas.document import DocumentReason, DocumentScores
+from app.schemas.framing import FramingReason, FramingScores
 from app.schemas.quality import QualityReason, QualityScores
 
 
@@ -12,13 +13,14 @@ FileReason = Literal["FILE_TOO_LARGE", "RESOLUTION_TOO_HIGH", "INVALID_IMAGE"]
 
 # one rejection reason: machine code + short text for the user
 class ReasonItem(BaseModel):
-    code: Union[DocumentReason, QualityReason, FileReason]
+    code: Union[DocumentReason, FramingReason, QualityReason, FileReason]
     message: str
 
 
 # numeric scores of every check
 class CheckScores(BaseModel):
     document: DocumentScores
+    framing: Optional[FramingScores]  # null when no document was found
     quality: QualityScores
 
 
