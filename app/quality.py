@@ -1,6 +1,9 @@
+from typing import Optional
+
 import cv2
 import numpy as np
 
+from app.document import warp_document
 from app.messages import Reason
 from app.schemas import BrightnessStats, QualityResult, QualityScores
 from settings import settings
@@ -24,6 +27,16 @@ def resize_long_side(image: np.ndarray, long_side: int) -> np.ndarray:
     return cv2.resize(image, (round(w * scale), round(h * scale)), interpolation=interpolation)
 
 
+# straightened document at its own resolution (no upscaling), inset so the background around it is not measured
+def document_region(bgr: np.ndarray, quad: np.ndarray) -> np.ndarray:
+    tl, tr, br, bl = quad
+    native = max(np.linalg.norm(tr - tl), np.linalg.norm(br - bl), np.linalg.norm(bl - tl), np.linalg.norm(br - tr))
+    crop = warp_document(bgr, quad, int(min(native, settings.QUALITY_WORK_SIZE)))
+    h, w = crop.shape[:2]
+    dy, dx = int(h * settings.QUALITY_DOC_INSET), int(w * settings.QUALITY_DOC_INSET)
+    return crop[dy:h - dy, dx:w - dx]
+
+
 # without it dark or low-contrast photos get a low sharpness score and are wrongly called blurry
 def stretch_contrast(gray: np.ndarray) -> np.ndarray:
     lo, hi = np.percentile(gray, (1, 99))
@@ -32,9 +45,13 @@ def stretch_contrast(gray: np.ndarray) -> np.ndarray:
     return np.clip((gray.astype(np.float32) - lo) * (255.0 / (hi - lo)), 0, 255).astype(np.uint8)
 
 
-# minimum over directions: motion blur lowers only the direction of movement, plain Laplacian misses it
+# Fixed size makes the score independent of resolution; light smoothing removes sensor noise,
+# which otherwise looks like sharp detail and hides blur.
+# Minimum over directions: motion blur lowers only the direction of movement, plain Laplacian misses it.
 def sharpness_score(gray: np.ndarray) -> float:
-    g = stretch_contrast(gray).astype(np.float32)
+    g = resize_long_side(gray, settings.SHARP_WORK_SIZE)
+    g = cv2.GaussianBlur(g, (0, 0), settings.SHARP_PRE_SMOOTH)
+    g = stretch_contrast(g).astype(np.float32)
     return float(min(cv2.filter2D(g, cv2.CV_32F, k).var() for k in DIRECTIONAL_KERNELS))
 
 
@@ -46,9 +63,14 @@ def brightness_stats(gray: np.ndarray) -> BrightnessStats:
     )
 
 
+# Glare must be clearly brighter than the paper, otherwise pale or white documents count as one big glare.
+# Paper level is a low percentile: a big glare spot would pull the median up.
 def glare_share(bgr: np.ndarray) -> float:
     hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
-    mask = ((hsv[..., 2] >= settings.GLARE_MIN_VALUE) & (hsv[..., 1] <= settings.GLARE_MAX_SATURATION)).astype(np.uint8)
+    value = hsv[..., 2]
+    paper = float(np.percentile(value, settings.GLARE_PAPER_PERCENTILE))
+    min_value = max(settings.GLARE_MIN_VALUE, paper + settings.GLARE_MIN_ABOVE_PAPER)
+    mask = ((value >= min_value) & (hsv[..., 1] <= settings.GLARE_MAX_SATURATION)).astype(np.uint8)
     mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, np.ones((5, 5), np.uint8))  # drop thin white strokes
 
     n, _, stats, _ = cv2.connectedComponentsWithStats(mask)
@@ -57,13 +79,13 @@ def glare_share(bgr: np.ndarray) -> float:
     return float(glare_area / mask.size)
 
 
-def check_quality(bgr: np.ndarray) -> QualityResult:
-    small = resize_long_side(bgr, settings.QUALITY_WORK_SIZE)
-    gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
+def check_quality(bgr: np.ndarray, quad: Optional[np.ndarray] = None) -> QualityResult:
+    region = document_region(bgr, quad) if quad is not None else resize_long_side(bgr, settings.QUALITY_WORK_SIZE)
+    gray = cv2.cvtColor(region, cv2.COLOR_BGR2GRAY)
 
     sharpness = sharpness_score(gray)
     light = brightness_stats(gray)
-    glare = glare_share(small)
+    glare = glare_share(region)
 
     reasons = []
     if sharpness < settings.SHARP_MIN_SCORE:

@@ -66,14 +66,18 @@ async def check(file: UploadFile):
     document = check_document(bgr_image)
     logger.info("Document check: %s", document.reasons)
 
-    framing, geometry = None, None
+    quad, framing, geometry = None, None, None
     if document.quad is not None:
         quad = np.array(document.quad, np.float32)
         framing = check_framing(bgr_image, quad)
         geometry = check_geometry(bgr_image, quad)
         logger.info("Framing and geometry checks: %s", framing.reasons + geometry.reasons)
 
-    quality = check_quality(bgr_image)
+    quality = check_quality(bgr_image, quad)
+    if Reason.SCREENSHOT in document.reasons:
+        quality.reasons = []  # photo quality rules don't apply to screenshots
+    elif Reason.BLANK_PAGE in document.reasons and Reason.BLURRY in quality.reasons:
+        quality.reasons.remove(Reason.BLURRY)  # sharpness can't be judged on an empty page
     logger.info("Quality checks: %s", quality.reasons)
 
     reasons = document.reasons

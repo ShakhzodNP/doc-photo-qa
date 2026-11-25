@@ -95,21 +95,25 @@ def flat_share(bgr: np.ndarray) -> float:
 
 def check_document(bgr: np.ndarray) -> DocumentResult:
     flat = flat_share(bgr)
+    mean = float(cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY).mean())
+    # blown-out or very dark areas are flat too; such a photo is badly exposed, not a screenshot
+    screenshot = (flat > settings.SCREENSHOT_MIN_FLAT_SHARE
+                  and settings.SCREENSHOT_MIN_MEAN < mean < settings.SCREENSHOT_MAX_MEAN)
     quad, corner_score = predict_corners(bgr)
     found = corner_score >= settings.DOC_MIN_CORNER_SCORE
 
     fallback_score = None
-    if not found and flat <= settings.SCREENSHOT_MIN_FLAT_SHARE:  # the main model misses small documents
+    if not found and not screenshot:  # the main model misses small documents
         fallback_quad, fallback_score = predict_corners_fallback(bgr)
         if fallback_quad is not None and fallback_score >= settings.DOC_MIN_FALLBACK_SCORE:
             quad, found = fallback_quad, True
 
     text_boxes = None
-    if found and flat <= settings.SCREENSHOT_MIN_FLAT_SHARE:
+    if found and not screenshot:
         text_boxes = count_text_boxes(warp_document(bgr, quad, settings.DOC_TEXT_LONG_SIDE))
 
     reasons = []
-    if flat > settings.SCREENSHOT_MIN_FLAT_SHARE:
+    if screenshot:
         reasons.append(Reason.SCREENSHOT)
     elif not found:
         reasons.append(Reason.NO_DOCUMENT)
@@ -119,6 +123,6 @@ def check_document(bgr: np.ndarray) -> DocumentResult:
     return DocumentResult(
         scores=DocumentScores(corner_score=corner_score, fallback_score=fallback_score,
                               text_boxes=text_boxes, flat_share=flat),
-        quad=quad.round(1).tolist() if found else None,
+        quad=quad.round(1).tolist() if found and not screenshot else None,
         reasons=reasons,
     )

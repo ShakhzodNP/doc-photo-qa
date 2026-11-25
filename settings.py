@@ -48,6 +48,8 @@ class Settings(BaseSettings):
     TEXT_BOX_THRESHOLD: float = Field(0.5)
     SCREENSHOT_BLOCK_STD: float = Field(0.6)      # 8x8 block std below this counts as perfectly flat
     SCREENSHOT_MIN_FLAT_SHARE: float = Field(0.5)
+    SCREENSHOT_MIN_MEAN: float = Field(50)
+    SCREENSHOT_MAX_MEAN: float = Field(235)
 
     # whole document in frame
     FRAME_EDGE_MARGIN: float = Field(0.03)
@@ -59,18 +61,23 @@ class Settings(BaseSettings):
     GEOM_MAX_ANGLE_DEV: float = Field(30.0)
 
     # image quality
-    QUALITY_WORK_SIZE: int = Field(1024)          # sharpness score depends on resolution
-    SHARP_MIN_SCORE: float = Field(60.0)
+    QUALITY_WORK_SIZE: int = Field(1024)
+    QUALITY_DOC_INSET: float = Field(0.04)
+    SHARP_WORK_SIZE: int = Field(384)             # sharpness score depends on resolution
+    SHARP_PRE_SMOOTH: float = Field(0.8)
+    SHARP_MIN_SCORE: float = Field(20.0)
     LIGHT_DARK_PIXEL: int = Field(15)
     LIGHT_BRIGHT_PIXEL: int = Field(250)
     LIGHT_MIN_MEAN: float = Field(60)
-    LIGHT_MAX_MEAN: float = Field(225)
+    LIGHT_MAX_MEAN: float = Field(240)
     LIGHT_MAX_DARK_SHARE: float = Field(0.30)
-    LIGHT_MAX_BRIGHT_SHARE: float = Field(0.25)
+    LIGHT_MAX_BRIGHT_SHARE: float = Field(0.7)
     GLARE_MIN_VALUE: int = Field(245)
     GLARE_MAX_SATURATION: int = Field(30)
+    GLARE_PAPER_PERCENTILE: float = Field(30)
+    GLARE_MIN_ABOVE_PAPER: float = Field(30)
     GLARE_MIN_BLOB_SHARE: float = Field(0.002)
-    LIGHT_MAX_GLARE_SHARE: float = Field(0.01)
+    LIGHT_MAX_GLARE_SHARE: float = Field(0.09)
 
 
 settings = Settings()
