@@ -32,6 +32,23 @@ class Settings(BaseSettings):
     MAX_IMAGE_PIXELS: int = Field(60_000_000)     # bigger resolution -> HTTP 413 (decompression-bomb guard)
     DECODE_LONG_SIDE: int = Field(1280)           # images are downscaled to this long side right after decoding
 
+    # models
+    CORNER_MODEL_PATH: str = Field("models/doccornernet_lean.ort")   # relative to project root
+    TEXT_MODEL_PATH: str = Field("models/ppocrv4_det.onnx")
+    FALLBACK_MODEL_PATH: str = Field("models/docaligner_lcnet100.onnx")
+    ONNX_THREADS: int = Field(0)                  # 0 = onnxruntime default
+
+    # document presence
+    DOC_MIN_CORNER_SCORE: float = Field(0.5)      # document-present probability below -> NO_DOCUMENT
+    DOC_MIN_FALLBACK_SCORE: float = Field(0.5)    # small-document model: weakest corner peak needed to accept
+    FALLBACK_HEATMAP_THRESHOLD: float = Field(0.3)  # heatmap value for a pixel to belong to a corner
+    DOC_MIN_TEXT_BOXES: int = Field(1)            # fewer text regions inside the document -> BLANK_PAGE
+    DOC_TEXT_LONG_SIDE: int = Field(960)          # straightened document size for text detection
+    TEXT_PIXEL_THRESHOLD: float = Field(0.3)      # text probability for a pixel to count as text
+    TEXT_BOX_THRESHOLD: float = Field(0.5)        # mean text probability for a region to count as a text box
+    SCREENSHOT_BLOCK_STD: float = Field(0.6)      # 8x8 block with lower pixel std counts as perfectly flat
+    SCREENSHOT_MIN_FLAT_SHARE: float = Field(0.5) # share of flat blocks above -> SCREENSHOT
+
     # image quality
     QUALITY_WORK_SIZE: int = Field(1024)          # long side for quality checks (scores depend on resolution)
     SHARP_MIN_SCORE: float = Field(60.0)          # below -> BLURRY

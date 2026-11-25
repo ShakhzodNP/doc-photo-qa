@@ -5,9 +5,10 @@ from fastapi.responses import JSONResponse
 
 from app.image_io import ImageDecodeError, ImageTooLargeError, decode_image
 from app.logger import logger
+from app.document import check_document
 from app.messages import REASON_MESSAGES
 from app.quality import check_quality
-from app.schemas import CheckResponse, Msg, ReasonItem
+from app.schemas import CheckResponse, CheckScores, Msg, ReasonItem
 from settings import settings
 
 
@@ -60,8 +61,13 @@ async def check(file: UploadFile):
         return file_error("INVALID_IMAGE", status.HTTP_415_UNSUPPORTED_MEDIA_TYPE)
     logger.info(f'[CHECK][TASK_ID: {TASK_ID}] End image decoding, size {bgr_image.shape[1]}x{bgr_image.shape[0]}')
 
-    logger.info(f'[CHECK][TASK_ID: {TASK_ID}] Start quality checks')
-    result = check_quality(bgr_image)
-    logger.info(f'[CHECK][TASK_ID: {TASK_ID}] End quality checks, reasons: {result.reasons}')
+    logger.info(f'[CHECK][TASK_ID: {TASK_ID}] Start document check')
+    document = check_document(bgr_image)
+    logger.info(f'[CHECK][TASK_ID: {TASK_ID}] End document check, reasons: {document.reasons}')
 
-    return build_response(result.reasons, result.scores)
+    logger.info(f'[CHECK][TASK_ID: {TASK_ID}] Start quality checks')
+    quality = check_quality(bgr_image)
+    logger.info(f'[CHECK][TASK_ID: {TASK_ID}] End quality checks, reasons: {quality.reasons}')
+
+    scores = CheckScores(document=document.scores, quality=quality.scores)
+    return build_response(document.reasons + quality.reasons, scores)
