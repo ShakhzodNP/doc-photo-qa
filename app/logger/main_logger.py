@@ -1,11 +1,20 @@
 import datetime
 import os
 import logging
+from contextvars import ContextVar
+
 from settings import settings
 
 
+task_id_var: ContextVar[str] = ContextVar("task_id", default="-")
+
 root_logger = logging.getLogger()
 root_logger.setLevel(settings.LOG_LEVEL)
+
+
+def add_task_id(record: logging.LogRecord) -> bool:
+    record.task_id = task_id_var.get()
+    return True
 
 
 def get_file_handler():
@@ -14,9 +23,10 @@ def get_file_handler():
     log_path = os.path.join(dir_path, settings.LOG_FILE)
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
-    file_handler = logging.FileHandler(log_path)
+    file_handler = logging.FileHandler(log_path, encoding="utf-8")
     file_handler.setLevel(settings.LOG_LEVEL)
     file_handler.setFormatter(logging.Formatter(settings.LOG_FORMAT))
+    file_handler.addFilter(add_task_id)
     return file_handler
 
 
@@ -24,6 +34,7 @@ def get_stream_handler():
     stream_handler = logging.StreamHandler()
     stream_handler.setLevel(settings.LOG_LEVEL)
     stream_handler.setFormatter(logging.Formatter(settings.LOG_FORMAT))
+    stream_handler.addFilter(add_task_id)
     return stream_handler
 
 

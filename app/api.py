@@ -1,16 +1,16 @@
 import uuid
+from typing import List
 
 import numpy as np
-
 from fastapi import APIRouter, UploadFile, status
 from fastapi.responses import JSONResponse
 
-from app.image_io import ImageDecodeError, ImageTooLargeError, decode_image
-from app.logger import logger
 from app.document import check_document
 from app.framing import check_framing
 from app.geometry import check_geometry
-from app.messages import REASON_MESSAGES
+from app.image_io import ImageDecodeError, ImageTooLargeError, decode_image
+from app.logger import logger, task_id_var
+from app.messages import REASON_MESSAGES, Reason
 from app.quality import check_quality
 from app.schemas import CheckResponse, CheckScores, Msg, ReasonItem
 from settings import settings
@@ -26,18 +26,17 @@ responses = {
     501: {"description": 'Not implemented'},
 }
 
-# build a response from reason codes (empty list = photo is ok)
-def build_response(codes: list, scores=None) -> CheckResponse:
+
+def build_response(reasons: List[Reason], scores: CheckScores = None) -> CheckResponse:
     return CheckResponse(
-        ok=not codes,
-        reasons=[ReasonItem(code=code, message=REASON_MESSAGES[code]) for code in codes],
+        ok=not reasons,
+        reasons=[ReasonItem(code=reason, message=REASON_MESSAGES[reason]) for reason in reasons],
         scores=scores,
     )
 
 
-# error response for a file that can't be checked
-def file_error(code: str, status_code: int) -> JSONResponse:
-    return JSONResponse(content=build_response([code]).model_dump(), status_code=status_code)
+def file_error(reason: Reason, status_code: int) -> JSONResponse:
+    return JSONResponse(content=build_response([reason]).model_dump(mode="json"), status_code=status_code)
 
 
 @router.get("/health", response_model=Msg, responses={**responses})
@@ -47,40 +46,35 @@ async def health() -> Msg:
 
 @router.post("/check", response_model=CheckResponse, responses={**responses})
 async def check(file: UploadFile):
-    TASK_ID = uuid.uuid4().hex
+    task_id_var.set(uuid.uuid4().hex)
     max_bytes = int(settings.MAX_UPLOAD_MB * 1024 * 1024)
 
-    logger.info(f'[CHECK][TASK_ID: {TASK_ID}] Start image decoding ({file.filename})')
+    logger.info("Decoding %s", file.filename)
     contents = await file.read(max_bytes + 1)  # one extra byte is enough to detect an oversized file
     if len(contents) > max_bytes:
-        logger.info(f'[CHECK][TASK_ID: {TASK_ID}] Rejected: file larger than {settings.MAX_UPLOAD_MB} MB')
-        return file_error("FILE_TOO_LARGE", status.HTTP_413_REQUEST_ENTITY_TOO_LARGE)
+        logger.info("Rejected: file larger than %s MB", settings.MAX_UPLOAD_MB)
+        return file_error(Reason.FILE_TOO_LARGE, status.HTTP_413_REQUEST_ENTITY_TOO_LARGE)
     try:
         bgr_image = decode_image(contents)
     except ImageTooLargeError as error:
-        logger.info(f'[CHECK][TASK_ID: {TASK_ID}] Rejected: {error}')
-        return file_error("RESOLUTION_TOO_HIGH", status.HTTP_413_REQUEST_ENTITY_TOO_LARGE)
+        logger.info("Rejected: %s", error)
+        return file_error(Reason.RESOLUTION_TOO_HIGH, status.HTTP_413_REQUEST_ENTITY_TOO_LARGE)
     except ImageDecodeError as error:
-        logger.info(f'[CHECK][TASK_ID: {TASK_ID}] Rejected: {error}')
-        return file_error("INVALID_IMAGE", status.HTTP_415_UNSUPPORTED_MEDIA_TYPE)
-    logger.info(f'[CHECK][TASK_ID: {TASK_ID}] End image decoding, size {bgr_image.shape[1]}x{bgr_image.shape[0]}')
+        logger.info("Rejected: %s", error)
+        return file_error(Reason.INVALID_IMAGE, status.HTTP_415_UNSUPPORTED_MEDIA_TYPE)
 
-    logger.info(f'[CHECK][TASK_ID: {TASK_ID}] Start document check')
     document = check_document(bgr_image)
-    logger.info(f'[CHECK][TASK_ID: {TASK_ID}] End document check, reasons: {document.reasons}')
+    logger.info("Document check: %s", document.reasons)
 
     framing, geometry = None, None
     if document.quad is not None:
         quad = np.array(document.quad, np.float32)
-        logger.info(f'[CHECK][TASK_ID: {TASK_ID}] Start framing and geometry checks')
         framing = check_framing(bgr_image, quad)
         geometry = check_geometry(bgr_image, quad)
-        logger.info(f'[CHECK][TASK_ID: {TASK_ID}] End framing and geometry checks, reasons: '
-                    f'{framing.reasons + geometry.reasons}')
+        logger.info("Framing and geometry checks: %s", framing.reasons + geometry.reasons)
 
-    logger.info(f'[CHECK][TASK_ID: {TASK_ID}] Start quality checks')
     quality = check_quality(bgr_image)
-    logger.info(f'[CHECK][TASK_ID: {TASK_ID}] End quality checks, reasons: {quality.reasons}')
+    logger.info("Quality checks: %s", quality.reasons)
 
     reasons = document.reasons
     if framing and geometry:

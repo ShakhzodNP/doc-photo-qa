@@ -1,26 +1,22 @@
-from typing import List, Literal
+from typing import List
 
 from pydantic import BaseModel
 
+from app.messages import Reason
 
-QualityReason = Literal["BLURRY", "TOO_DARK", "OVEREXPOSED", "GLARE"]
 
-
-# brightness statistics of an image
 class BrightnessStats(BaseModel):
-    mean: float          # mean gray value, 0..255
-    dark_share: float    # share of almost black pixels, 0..1
-    bright_share: float  # share of almost white pixels, 0..1
+    mean: float
+    dark_share: float
+    bright_share: float
 
 
-# raw measurements of all quality checks
 class QualityScores(BaseModel):
     sharpness: float
     brightness: BrightnessStats
-    glare_share: float   # glare area / image area, 0..1
+    glare_share: float
 
 
-# quality check result: measurements + rejection reasons
 class QualityResult(BaseModel):
     scores: QualityScores
-    reasons: List[QualityReason]
+    reasons: List[Reason]
