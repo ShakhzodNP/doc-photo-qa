@@ -53,6 +53,11 @@ class Settings(BaseSettings):
     FRAME_EDGE_MARGIN: float = Field(0.03)        # corner closer to the edge (share of side) -> ask second model
     FRAME_MIN_FALLBACK_SCORE: float = Field(0.8)  # second model must see all 4 corners this confidently, else DOCUMENT_CUT
 
+    # document size and angle
+    GEOM_MIN_AREA_SHARE: float = Field(0.20)      # document area / frame area below -> TOO_SMALL
+    GEOM_MAX_SIDE_RATIO: float = Field(1.5)       # opposite sides differ more (perspective) -> TOO_TILTED
+    GEOM_MAX_ANGLE_DEV: float = Field(30.0)       # a corner angle further from 90 degrees -> TOO_TILTED
+
     # image quality
     QUALITY_WORK_SIZE: int = Field(1024)          # long side for quality checks (scores depend on resolution)
     SHARP_MIN_SCORE: float = Field(60.0)          # below -> BLURRY
