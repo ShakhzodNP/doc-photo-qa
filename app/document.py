@@ -85,6 +85,14 @@ def count_text_boxes(bgr: np.ndarray) -> int:
     return count
 
 
+# models load lazily and the first run of each is slow; doing it at startup keeps the first request under 1 s
+def warm_up_models() -> None:
+    dummy = np.random.default_rng(0).integers(0, 255, (960, 1280, 3), dtype=np.uint8)
+    predict_corners(dummy)
+    predict_corners_fallback(dummy)
+    count_text_boxes(dummy)
+
+
 # camera photos always have sensor noise, screenshots have large perfectly flat areas
 def flat_share(bgr: np.ndarray) -> float:
     gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY).astype(np.float32)
