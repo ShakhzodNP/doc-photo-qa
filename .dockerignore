@@ -2,6 +2,8 @@
 .venv
 .env
 logs
+data
+eval
 **/__pycache__
 *.pyc
 .idea

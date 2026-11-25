@@ -10,7 +10,6 @@ def area_share(quad: np.ndarray, width: int, height: int) -> float:
     return float(cv2.contourArea(quad.astype(np.float32)) / (width * height))
 
 
-# perspective makes opposite sides of a rectangle unequal
 def side_ratio(quad: np.ndarray) -> float:
     sides = [np.linalg.norm(quad[(i + 1) % 4] - quad[i]) for i in range(4)]
     ratio = lambda a, b: max(a, b) / max(min(a, b), 1.0)

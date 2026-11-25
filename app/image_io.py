@@ -25,12 +25,12 @@ def decode_image(data: bytes) -> np.ndarray:
                 raise ImageDecodeError(f"unsupported format: {probe.format}")
             if probe.width * probe.height > settings.MAX_IMAGE_PIXELS:
                 raise ImageTooLargeError(f"resolution too high: {probe.width}x{probe.height}")
-            probe.verify()  # catches truncated files
+            probe.verify()
 
         img = Image.open(io.BytesIO(data))
         if img.format == "JPEG":
             img.draft("RGB", (settings.DECODE_LONG_SIDE, settings.DECODE_LONG_SIDE))
-        img = ImageOps.exif_transpose(img).convert("RGB")  # phones store rotation in EXIF
+        img = ImageOps.exif_transpose(img).convert("RGB")
         img.thumbnail((settings.DECODE_LONG_SIDE, settings.DECODE_LONG_SIDE))
         rgb = np.asarray(img)
     except ImageDecodeError:

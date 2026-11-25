@@ -35,6 +35,17 @@ def build_response(reasons: List[Reason], scores: CheckScores = None) -> CheckRe
     )
 
 
+def relevant_quality_reasons(quality: List[Reason], document: List[Reason], has_document: bool) -> List[Reason]:
+    if Reason.SCREENSHOT in document:
+        return []  # photo quality rules don't apply to screenshots
+    dropped = set()
+    if not has_document:
+        dropped.add(Reason.GLARE)  # glare only makes sense on a document
+    if Reason.BLANK_PAGE in document or Reason.OVEREXPOSED in quality:
+        dropped.add(Reason.BLURRY)  # no detail to judge sharpness on: empty page or blown-out photo
+    return [reason for reason in quality if reason not in dropped]
+
+
 def file_error(reason: Reason, status_code: int) -> JSONResponse:
     return JSONResponse(content=build_response([reason]).model_dump(mode="json"), status_code=status_code)
 
@@ -74,10 +85,7 @@ async def check(file: UploadFile):
         logger.info("Framing and geometry checks: %s", framing.reasons + geometry.reasons)
 
     quality = check_quality(bgr_image, quad)
-    if Reason.SCREENSHOT in document.reasons:
-        quality.reasons = []  # photo quality rules don't apply to screenshots
-    elif Reason.BLANK_PAGE in document.reasons and Reason.BLURRY in quality.reasons:
-        quality.reasons.remove(Reason.BLURRY)  # sharpness can't be judged on an empty page
+    quality.reasons = relevant_quality_reasons(quality.reasons, document.reasons, quad is not None)
     logger.info("Quality checks: %s", quality.reasons)
 
     reasons = document.reasons

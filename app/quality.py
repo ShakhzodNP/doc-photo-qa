@@ -9,7 +9,6 @@ from app.schemas import BrightnessStats, QualityResult, QualityScores
 from settings import settings
 
 
-# second derivative along x, y and both diagonals
 DIRECTIONAL_KERNELS = [
     np.array([[1, -2, 1]], np.float32),
     np.array([[1], [-2], [1]], np.float32),

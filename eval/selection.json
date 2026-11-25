@@ -1,0 +1,72 @@
+{
+ "good": [
+  "midv500_006478.jpg",
+  "midv500_004692.jpg",
+  "midv500_005938.jpg",
+  "midv500_006473.jpg",
+  "midv500_008781.jpg",
+  "midv500_003896.jpg",
+  "midv500_008562.jpg",
+  "midv500_000866.jpg",
+  "midv500_005944.jpg",
+  "midv500_004016.jpg",
+  "midv500_004215.jpg",
+  "midv500_004147.jpg",
+  "midv500_008316.jpg",
+  "midv500_002563.jpg",
+  "midv500_008534.jpg",
+  "midv500_005626.jpg",
+  "midv500_005011.jpg",
+  "midv500_003074.jpg",
+  "midv500_007827.jpg",
+  "midv500_003704.jpg",
+  "midv500_007625.jpg",
+  "midv500_001117.jpg",
+  "midv500_009397.jpg",
+  "midv500_000867.jpg",
+  "midv500_004435.jpg",
+  "midv500_004664.jpg",
+  "midv500_004605.jpg",
+  "smartdoc_001194.jpg",
+  "midv500_000950.jpg"
+ ],
+ "real_blurry": [
+  "midv500_003360.jpg",
+  "midv500_001459.jpg",
+  "midv500_007737.jpg",
+  "midv500_002432.jpg",
+  "midv500_005793.jpg",
+  "midv500_002155.jpg",
+  "midv500_003543.jpg",
+  "midv500_008895.jpg",
+  "midv500_002489.jpg",
+  "midv500_007755.jpg",
+  "midv500_009315.jpg"
+ ],
+ "real_glare": [
+  "midv500_001062.jpg",
+  "midv500_001134.jpg",
+  "midv500_006124.jpg",
+  "midv500_001850.jpg",
+  "midv500_009068.jpg",
+  "midv500_002400.jpg",
+  "midv500_006349.jpg"
+ ],
+ "small": [
+  "smartdoc_000867.jpg",
+  "smartdoc_000419.jpg",
+  "smartdoc_000375.jpg",
+  "smartdoc_000731.jpg",
+  "smartdoc_000805.jpg",
+  "smartdoc_000369.jpg",
+  "smartdoc_000830.jpg",
+  "smartdoc_001097.jpg",
+  "smartdoc_000573.jpg",
+  "smartdoc_000880.jpg",
+  "smartdoc_000400.jpg",
+  "smartdoc_000778.jpg"
+ ],
+ "skip_negatives": [
+  "negative_coco_003111.jpg"
+ ]
+}

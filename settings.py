@@ -63,7 +63,7 @@ class Settings(BaseSettings):
     # image quality
     QUALITY_WORK_SIZE: int = Field(1024)
     QUALITY_DOC_INSET: float = Field(0.04)
-    SHARP_WORK_SIZE: int = Field(384)             # sharpness score depends on resolution
+    SHARP_WORK_SIZE: int = Field(384)
     SHARP_PRE_SMOOTH: float = Field(0.8)
     SHARP_MIN_SCORE: float = Field(20.0)
     LIGHT_DARK_PIXEL: int = Field(15)
