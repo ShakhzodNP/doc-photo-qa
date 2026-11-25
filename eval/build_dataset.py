@@ -1,51 +1,34 @@
 """Build the labeled test set: data/test_set/images/*.jpg + data/test_set/labels.csv.
 
 Sources:
-  - DocCornerDataset (Hugging Face mapo80/DocCornerDataset, test chunk 0): MIDV-500/2019 specimen IDs and
-    SmartDoc pages (research-only licenses, so they are downloaded, not stored in the repo), COCO negatives.
-    Frames are picked by name in eval/selection.json (chosen by eye).
+  - data/source: frames from DocCornerDataset (MIDV-500/2019 specimen IDs, SmartDoc pages, COCO photos)
+    with ground-truth corners in corners.json. Picked by eye, names in eval/selection.json.
   - data/own: own phone photos without personal data.
-  - Synthetic defects made from the clean frames with fixed seeds. Geometric ones use the dataset's
-    ground-truth corners, not the service's detector.
+  - Synthetic defects made from the clean frames with fixed seeds. Geometric ones use the ground-truth
+    corners, not the service's detector.
 
 Usage: python eval/build_dataset.py
 """
 import csv
-import io
 import json
 import os
-import urllib.request
 
 import cv2
 import numpy as np
-import pyarrow.parquet as pq
 from PIL import Image, ImageDraw
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PARQUET_URL = "https://huggingface.co/datasets/mapo80/DocCornerDataset/resolve/main/test/data-00000.parquet"
-CACHE = os.path.join(ROOT, "data", "cache", "doccorner_test_00000.parquet")
+SOURCE = os.path.join(ROOT, "data", "source")
 OUT = os.path.join(ROOT, "data", "test_set")
 OWN = os.path.join(ROOT, "data", "own")
-CORNERS = ["corner_tl_x", "corner_tl_y", "corner_tr_x", "corner_tr_y",
-           "corner_br_x", "corner_br_y", "corner_bl_x", "corner_bl_y"]
 
 rng = np.random.default_rng(7)
 
 
-def load_dataset() -> dict:
-    if not os.path.exists(CACHE):
-        os.makedirs(os.path.dirname(CACHE), exist_ok=True)
-        print(f"downloading {PARQUET_URL} (~190 MB)")
-        urllib.request.urlretrieve(PARQUET_URL, CACHE)
-    frames = {}
-    for row in pq.read_table(CACHE).to_pylist():
-        image = cv2.imdecode(np.frombuffer(row["image"]["bytes"], np.uint8), cv2.IMREAD_COLOR)
-        quad = None
-        if not row["is_negative"]:
-            h, w = image.shape[:2]
-            quad = np.array([row[c] for c in CORNERS], np.float32).reshape(4, 2) * [w, h]
-        frames[row["filename"]] = (image, quad)
-    return frames
+def load_sources() -> dict:
+    corners = json.load(open(os.path.join(SOURCE, "corners.json"), encoding="utf-8"))
+    return {name: (cv2.imread(os.path.join(SOURCE, "images", name)), None if quad is None else np.float32(quad))
+            for name, quad in corners.items()}
 
 
 def add_noise(im, sigma):
@@ -144,7 +127,7 @@ def screenshot(i):
 
 def main():
     selection = json.load(open(os.path.join(ROOT, "eval", "selection.json"), encoding="utf-8"))
-    frames = load_dataset()
+    frames = load_sources()
     os.makedirs(os.path.join(OUT, "images"), exist_ok=True)
     rows = []
 
@@ -165,8 +148,7 @@ def main():
     for name, im, _ in good[8:16]:
         save(f"good_dim_{name}", exposure(im, 0.6, 0, 3), [], name, "synthetic")
 
-    negatives = sorted(n for n, (_, q) in frames.items() if q is None and n not in selection["skip_negatives"])
-    for name in rng.choice(negatives, 15, replace=False):
+    for name in selection["negatives"]:
         save(f"nodoc_{name}", frames[name][0], ["NO_DOCUMENT"], name, "real")
     save("screenshot_own_pdf.jpg", own["screenshot_pdf.jpg"], ["SCREENSHOT"], "screenshot_pdf.jpg", "real")
     for i in range(9):

@@ -66,7 +66,21 @@
   "smartdoc_000400.jpg",
   "smartdoc_000778.jpg"
  ],
- "skip_negatives": [
-  "negative_coco_003111.jpg"
+ "negatives": [
+  "negative_coco_000312.jpg",
+  "negative_coco_000903.jpg",
+  "negative_coco_003028.jpg",
+  "negative_coco_003665.jpg",
+  "negative_coco_003849.jpg",
+  "negative_coco_train_002330.jpg",
+  "negative_coco_train_002618.jpg",
+  "negative_coco_train_002961.jpg",
+  "negative_coco_train_004146.jpg",
+  "negative_coco_train_005205.jpg",
+  "negative_coco_train_007135.jpg",
+  "negative_coco_train_007588.jpg",
+  "negative_coco_train_008260.jpg",
+  "negative_coco_train_008397.jpg",
+  "negative_coco_train_009141.jpg"
  ]
 }

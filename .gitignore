@@ -5,6 +5,4 @@ __pycache__/
 .vscode/
 .env
 logs/
-data/cache/
-data/test_set/
 eval/results/
