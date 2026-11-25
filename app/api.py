@@ -5,8 +5,9 @@ from fastapi.responses import JSONResponse
 
 from app.image_io import ImageDecodeError, ImageTooLargeError, decode_image
 from app.logger import logger
+from app.messages import REASON_MESSAGES
 from app.quality import check_quality
-from app.schemas import Msg, QualityResult
+from app.schemas import CheckResponse, Msg, ReasonItem
 from settings import settings
 
 
@@ -20,9 +21,18 @@ responses = {
     501: {"description": 'Not implemented'},
 }
 
-MSG_TOO_LARGE = "Файл слишком большой. Загрузите фото до 10 МБ."
-MSG_TOO_MANY_PIXELS = "Разрешение фото слишком большое. Уменьшите его или сделайте снимок обычной камерой телефона."
-MSG_INVALID = "Не удалось открыть файл. Загрузите фото в формате JPG или PNG."
+# build a response from reason codes (empty list = photo is ok)
+def build_response(codes: list, scores=None) -> CheckResponse:
+    return CheckResponse(
+        ok=not codes,
+        reasons=[ReasonItem(code=code, message=REASON_MESSAGES[code]) for code in codes],
+        scores=scores,
+    )
+
+
+# error response for a file that can't be checked
+def file_error(code: str, status_code: int) -> JSONResponse:
+    return JSONResponse(content=build_response([code]).model_dump(), status_code=status_code)
 
 
 @router.get("/health", response_model=Msg, responses={**responses})
@@ -30,7 +40,7 @@ async def health() -> Msg:
     return Msg(msg="OK")
 
 
-@router.post("/check", response_model=QualityResult, responses={**responses})
+@router.post("/check", response_model=CheckResponse, responses={**responses})
 async def check(file: UploadFile):
     TASK_ID = uuid.uuid4().hex
     max_bytes = int(settings.MAX_UPLOAD_MB * 1024 * 1024)
@@ -39,22 +49,19 @@ async def check(file: UploadFile):
     contents = await file.read(max_bytes + 1)  # one extra byte is enough to detect an oversized file
     if len(contents) > max_bytes:
         logger.info(f'[CHECK][TASK_ID: {TASK_ID}] Rejected: file larger than {settings.MAX_UPLOAD_MB} MB')
-        return JSONResponse(content=Msg(msg=MSG_TOO_LARGE).model_dump(),
-                            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE)
+        return file_error("FILE_TOO_LARGE", status.HTTP_413_REQUEST_ENTITY_TOO_LARGE)
     try:
         bgr_image = decode_image(contents)
     except ImageTooLargeError as error:
         logger.info(f'[CHECK][TASK_ID: {TASK_ID}] Rejected: {error}')
-        return JSONResponse(content=Msg(msg=MSG_TOO_MANY_PIXELS).model_dump(),
-                            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE)
+        return file_error("RESOLUTION_TOO_HIGH", status.HTTP_413_REQUEST_ENTITY_TOO_LARGE)
     except ImageDecodeError as error:
         logger.info(f'[CHECK][TASK_ID: {TASK_ID}] Rejected: {error}')
-        return JSONResponse(content=Msg(msg=MSG_INVALID).model_dump(),
-                            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE)
+        return file_error("INVALID_IMAGE", status.HTTP_415_UNSUPPORTED_MEDIA_TYPE)
     logger.info(f'[CHECK][TASK_ID: {TASK_ID}] End image decoding, size {bgr_image.shape[1]}x{bgr_image.shape[0]}')
 
     logger.info(f'[CHECK][TASK_ID: {TASK_ID}] Start quality checks')
     result = check_quality(bgr_image)
     logger.info(f'[CHECK][TASK_ID: {TASK_ID}] End quality checks, reasons: {result.reasons}')
 
-    return result
+    return build_response(result.reasons, result.scores)
